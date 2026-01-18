@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>رفع ملفات لاكتشاف الكائنات</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>اكتشاف الكائنات من الملفات</h1>
+        <nav>
+            <a href="index.html">العودة إلى الكاميرا المباشرة</a>
+        </nav>
+
+        <div class="upload-section">
+            <h2>رفع صورة</h2>
+            <input type="file" id="imageInput" accept="image/*">
+            <button id="uploadImageBtn">اكتشاف في الصورة</button>
+            <div id="imageResult" class="result-container"></div>
+        </div>
+
+        <hr>
+
+        <div class="upload-section">
+            <h2>رفع فيديو</h2>
+            <input type="file" id="videoInput" accept="video/*">
+            <button id="uploadVideoBtn">اكتشاف في الفيديو</button>
+            <div id="videoResult" class="result-container"></div>
+        </div>
+
+        <p id="status">الحالة: جاهز</p>
+    </div>
+    <script src="upload.js"></script>
+</body>
+</html>
