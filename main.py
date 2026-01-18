@@ -1,12 +1,16 @@
 import cv2
 import numpy as np
 import base64
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Response, BackgroundTasks
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from ultralytics import YOLO
 import json
 import uvicorn
 import logging
+import os
+import uuid
+import shutil
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -79,6 +83,81 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.send_text(json.dumps({"error": "Server error"}))
         except:
             pass
+
+def remove_file(path: str):
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except Exception as e:
+        logger.error(f"Error removing file {path}: {e}")
+
+@app.post("/upload-video")
+async def upload_video(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+    # Create temp directory if it doesn't exist
+    os.makedirs("temp", exist_ok=True)
+    file_id = str(uuid.uuid4())
+    input_path = f"temp/{file_id}_{file.filename}"
+    output_filename = f"detected_{file_id}_{file.filename}"
+    output_filename = os.path.splitext(output_filename)[0] + ".mp4"
+    output_path = f"temp/{output_filename}"
+
+    try:
+        with open(input_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        cap = cv2.VideoCapture(input_path)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+
+        fourcc = cv2.VideoWriter_fourcc(*'avc1')
+        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+        if not out.isOpened():
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            results = model(frame, conf=0.3, verbose=False)[0]
+            res_plotted = results.plot()
+            out.write(res_plotted)
+
+        cap.release()
+        out.release()
+
+        background_tasks.add_task(remove_file, input_path)
+        background_tasks.add_task(remove_file, output_path)
+
+        return FileResponse(output_path, media_type="video/mp4", filename=output_filename)
+    except Exception as e:
+        logger.error(f"Error processing video: {e}")
+        remove_file(input_path)
+        remove_file(output_path)
+        return Response(content=json.dumps({"error": str(e)}), status_code=500)
+
+@app.post("/upload-image")
+async def upload_image(file: UploadFile = File(...)):
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+    if img is None:
+        return {"error": "Invalid image"}
+
+    # Run YOLOv8 inference
+    results = model(img, conf=0.3, verbose=False)[0]
+
+    # Draw detections on image
+    res_plotted = results.plot()
+
+    # Encode image back to bytes
+    _, im_png = cv2.imencode(".png", res_plotted)
+
+    return Response(content=im_png.tobytes(), media_type="image/png")
 
 # Serve static files
 # This must be mounted AFTER other routes if it's at root
