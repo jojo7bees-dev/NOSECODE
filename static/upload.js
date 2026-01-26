@@ -8,17 +8,22 @@ const videoResult = document.getElementById('videoResult');
 
 const status = document.getElementById('status');
 
+function updateStatus(text, type = '') {
+    status.innerText = text;
+    status.className = 'status-badge ' + (type ? 'status-' + type : '');
+}
+
 uploadImageBtn.addEventListener('click', async () => {
     if (!imageInput.files[0]) {
-        alert('يرجى اختيار صورة أولاً');
+        updateStatus('يرجى اختيار صورة أولاً', 'danger');
         return;
     }
 
     const formData = new FormData();
     formData.append('file', imageInput.files[0]);
 
-    status.innerText = 'الحالة: جاري معالجة الصورة...';
-    imageResult.innerHTML = '';
+    updateStatus('جاري تحليل الصورة...', 'connected');
+    imageResult.innerHTML = '<div style="padding: 20px; text-align: center;">جاري المعالجة...</div>';
 
     try {
         const response = await fetch('/upload-image', {
@@ -29,31 +34,29 @@ uploadImageBtn.addEventListener('click', async () => {
         if (response.ok) {
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
-            const img = document.createElement('img');
-            img.src = url;
-            img.style.maxWidth = '100%';
-            imageResult.appendChild(img);
-            status.innerText = 'الحالة: تم الانتهاء';
+            imageResult.innerHTML = `<img src="${url}" alt="Result">`;
+            updateStatus('اكتمل التحليل بنجاح', 'connected');
         } else {
-            status.innerText = 'الحالة: حدث خطأ أثناء المعالجة';
+            updateStatus('حدث خطأ أثناء المعالجة', 'danger');
+            imageResult.innerHTML = '';
         }
     } catch (error) {
         console.error(error);
-        status.innerText = 'الحالة: حدث خطأ في الاتصال';
+        updateStatus('خطأ في الاتصال بالخادم', 'danger');
     }
 });
 
 uploadVideoBtn.addEventListener('click', async () => {
     if (!videoInput.files[0]) {
-        alert('يرجى اختيار فيديو أولاً');
+        updateStatus('يرجى اختيار فيديو أولاً', 'danger');
         return;
     }
 
     const formData = new FormData();
     formData.append('file', videoInput.files[0]);
 
-    status.innerText = 'الحالة: جاري معالجة الفيديو (قد يستغرق ذلك وقتاً)...';
-    videoResult.innerHTML = '';
+    updateStatus('جاري معالجة الفيديو... قد يستغرق الأمر دقيقة', 'connected');
+    videoResult.innerHTML = '<div style="padding: 20px; text-align: center;">جاري معالجة الفيديو... يرجى الانتظار</div>';
 
     try {
         const response = await fetch('/upload-video', {
@@ -64,17 +67,14 @@ uploadVideoBtn.addEventListener('click', async () => {
         if (response.ok) {
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
-            const video = document.createElement('video');
-            video.src = url;
-            video.controls = true;
-            video.style.maxWidth = '100%';
-            videoResult.appendChild(video);
-            status.innerText = 'الحالة: تم الانتهاء';
+            videoResult.innerHTML = `<video src="${url}" controls></video>`;
+            updateStatus('اكتملت معالجة الفيديو', 'connected');
         } else {
-            status.innerText = 'الحالة: حدث خطأ أثناء المعالجة';
+            updateStatus('فشلت معالجة الفيديو', 'danger');
+            videoResult.innerHTML = '';
         }
     } catch (error) {
         console.error(error);
-        status.innerText = 'الحالة: حدث خطأ في الاتصال';
+        updateStatus('خطأ في الاتصال', 'danger');
     }
 });

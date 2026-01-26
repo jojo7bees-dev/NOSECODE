@@ -18,9 +18,15 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Load YOLOv8 model (n is the smallest and fastest version)
-# This will download the model weights on the first run
-model = YOLO('yolov8n.pt')
+# Load YOLO model from ONNX format
+# Using model.onnx as requested
+MODEL_PATH = 'model.onnx'
+if not os.path.exists(MODEL_PATH):
+    logger.error(f"Model file {MODEL_PATH} not found!")
+    # Fallback to yolov8n.pt if onnx is missing (for safety during development)
+    model = YOLO('yolov8n.pt')
+else:
+    model = YOLO(MODEL_PATH, task='detect')
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -54,23 +60,27 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_text(json.dumps({"error": "Invalid image"}))
                 continue
 
-            # Run YOLOv8 inference
-            # We use stream=True for better performance in loops
-            results = model(img, conf=0.3, verbose=False)[0]
+            # Run YOLO inference
+            results = model.predict(img, conf=0.3, verbose=False)[0]
 
             detections = []
             if results.boxes:
                 for box in results.boxes:
-                    # Get box coordinates, confidence and class
+                    cls = int(box.cls[0])
+                    # Filter for only one class (e.g., class 0) to strictly follow requirements
+                    # if the model has more than one class.
+                    if cls != 0:
+                        continue
+
                     x1, y1, x2, y2 = box.xyxy[0].tolist()
                     conf = float(box.conf[0])
-                    cls = int(box.cls[0])
                     label = model.names[cls]
 
                     detections.append({
                         "box": [int(x1), int(y1), int(x2), int(y2)],
                         "confidence": conf,
-                        "label": label
+                        "label": label,
+                        "class_id": cls
                     })
 
             # Send results back to the client
@@ -93,7 +103,6 @@ def remove_file(path: str):
 
 @app.post("/upload-video")
 async def upload_video(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
-    # Create temp directory if it doesn't exist
     os.makedirs("temp", exist_ok=True)
     file_id = str(uuid.uuid4())
     input_path = f"temp/{file_id}_{file.filename}"
@@ -122,7 +131,13 @@ async def upload_video(background_tasks: BackgroundTasks, file: UploadFile = Fil
             if not ret:
                 break
 
-            results = model(frame, conf=0.3, verbose=False)[0]
+            results = model.predict(frame, conf=0.3, verbose=False)[0]
+            # Filter detections for class 0 only
+            if results.boxes:
+                mask = results.boxes.cls == 0
+                results.boxes = results.boxes[mask]
+
+            # Draw detections
             res_plotted = results.plot()
             out.write(res_plotted)
 
@@ -148,10 +163,15 @@ async def upload_image(file: UploadFile = File(...)):
     if img is None:
         return {"error": "Invalid image"}
 
-    # Run YOLOv8 inference
-    results = model(img, conf=0.3, verbose=False)[0]
+    # Run YOLO inference
+    results = model.predict(img, conf=0.3, verbose=False)[0]
 
-    # Draw detections on image
+    # Filter detections for class 0 only
+    if results.boxes:
+        mask = results.boxes.cls == 0
+        results.boxes = results.boxes[mask]
+
+    # Draw detections
     res_plotted = results.plot()
 
     # Encode image back to bytes
@@ -160,7 +180,6 @@ async def upload_image(file: UploadFile = File(...)):
     return Response(content=im_png.tobytes(), media_type="image/png")
 
 # Serve static files
-# This must be mounted AFTER other routes if it's at root
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":

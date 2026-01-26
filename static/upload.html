@@ -3,33 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>رفع ملفات لاكتشاف الكائنات</title>
+    <title>رفع الملفات | نظام الكشف الذكي</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>اكتشاف الكائنات من الملفات</h1>
+    <div class="app-container">
+        <header>
+            <h1>معالجة الملفات</h1>
+            <p>ارفع الصور أو الفيديوهات لتحليلها باستخدام نموذج الذكاء الاصطناعي</p>
+        </header>
+
         <nav>
-            <a href="index.html">العودة إلى الكاميرا المباشرة</a>
+            <a href="index.html" class="nav-link">الكاميرا المباشرة</a>
+            <a href="upload.html" class="nav-link active">رفع الملفات</a>
         </nav>
 
-        <div class="upload-section">
-            <h2>رفع صورة</h2>
-            <input type="file" id="imageInput" accept="image/*">
-            <button id="uploadImageBtn">اكتشاف في الصورة</button>
-            <div id="imageResult" class="result-container"></div>
+        <div class="upload-grid">
+            <section class="card">
+                <div class="upload-zone">
+                    <h3>تحليل صورة</h3>
+                    <input type="file" id="imageInput" accept="image/*">
+                    <button id="uploadImageBtn" class="btn">
+                        <span>بدء التحليل</span>
+                    </button>
+                </div>
+                <div id="imageResult" class="result-container"></div>
+            </section>
+
+            <section class="card">
+                <div class="upload-zone">
+                    <h3>تحليل فيديو</h3>
+                    <input type="file" id="videoInput" accept="video/*">
+                    <button id="uploadVideoBtn" class="btn btn-secondary">
+                        <span>بدء المعالجة</span>
+                    </button>
+                </div>
+                <div id="videoResult" class="result-container"></div>
+            </section>
         </div>
 
-        <hr>
-
-        <div class="upload-section">
-            <h2>رفع فيديو</h2>
-            <input type="file" id="videoInput" accept="video/*">
-            <button id="uploadVideoBtn">اكتشاف في الفيديو</button>
-            <div id="videoResult" class="result-container"></div>
+        <div class="controls">
+            <div id="status" class="status-badge">جاهز للاستلام</div>
         </div>
 
-        <p id="status">الحالة: جاهز</p>
+        <footer style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 2rem;">
+            تم التطوير باستخدام FastAPI و YOLO ONNX
+        </footer>
     </div>
     <script src="upload.js"></script>
 </body>
